@@ -1,0 +1,5 @@
+INDICATION: Ventilator-associated pneumonia, evaluate for interval changes.
+
+COMPARISON: Multiple chest radiographs from ___ dating back to ___.
+
+PORTABLE RADIOGRAPH OF THE CHEST: The mild cardiomegaly is stable. The hilar and mediastinal contours are normal. The endotracheal tube, nasogastric tube, and right PICC are in appropriate position and unchanged. The lungs are otherwise clear

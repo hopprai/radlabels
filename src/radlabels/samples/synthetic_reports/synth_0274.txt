@@ -1,0 +1,9 @@
+INDICATION: Lung cancer, pneumonia. Evaluate for interval change.
+
+COMPARISON: Multiple chest radiographs from ___ back to ___. Chest CT from ___.
+
+PORTABLE SUPINE RADIOGRAPH OF THE CHEST:
+There is no pneumothorax.
+The diffuse heterogeneous opacity involving the entire right lung is worse.
+Mild cardiomegaly persists.
+Pulmonary and mediastinal vascular congestion persists.

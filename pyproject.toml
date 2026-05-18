@@ -1,0 +1,43 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "radlabels"
+version = "0.1.0"
+description = "Radiologist-defined disease labels for free-text radiology reports."
+readme = "README.md"
+license = { file = "LICENSE" }
+authors = [{ name = "Jean-Benoit Delbrouck" }]
+requires-python = ">=3.10,<3.13"
+dependencies = [
+    "radgraph>=0.1.18",
+    "torch>=2.1,<2.5",
+    "transformers>=4.39,<5",
+    "nltk>=3.8",
+    "ijson>=3.2",
+    "orjson>=3.9",
+    "tqdm>=4.66",
+    "rich>=13.7",
+    "click>=8.1",
+    "requests>=2.28",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=7", "ruff>=0.5"]
+
+[project.scripts]
+radlabels = "radlabels.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/jbdel/radiological-labels"
+Repository = "https://github.com/jbdel/radiological-labels"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/radlabels"]
+
+[tool.hatch.build.targets.sdist]
+include = ["src/radlabels", "examples", "tests", "README.md", "LICENSE", "pyproject.toml"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"src/radlabels/samples" = "radlabels/samples"

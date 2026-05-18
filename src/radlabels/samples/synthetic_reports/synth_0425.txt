@@ -1,0 +1,7 @@
+EXAMINATION: CHEST (PORTABLE AP)
+INDICATION: ___ year old man with hypoxic respiratory failure, s/p intubation // endotrachial tube placement
+COMPARISON: Chest radiograph ___
+
+IMPRESSION:
+The right heart border is obscured, but the heart is at least mildly enlarged.
+Dense consolidation of the right upper lobe with right basilar opacity and increased markings in
