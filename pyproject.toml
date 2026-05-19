@@ -30,6 +30,9 @@ radlabels = "radlabels.cli:main"
 Homepage = "https://github.com/jbdel/radiological-labels"
 Repository = "https://github.com/jbdel/radiological-labels"
 
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
 [tool.hatch.build.targets.wheel]
 packages = ["src/radlabels"]
 
