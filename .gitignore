@@ -17,3 +17,6 @@ dist/
 .idea/
 *.swp
 .DS_Store
+
+# Working documents
+plan/
