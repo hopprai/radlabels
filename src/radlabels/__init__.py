@@ -18,7 +18,7 @@ from dataclasses import dataclass, field
 from typing import Sequence
 
 from .aliases import ALIAS_VERSION, ALIASES, PARENT_MAP
-from .matcher import LABEL_NAMES, label_study
+from .matcher import LABEL_NAMES, _compile_aliases, label_study
 from ._validation import validate_aliases
 
 __all__ = [
@@ -80,11 +80,13 @@ def label_reports(
         raise ValueError("len(ids) must equal len(texts)")
 
     annotations = run_radgraph(list(texts), gpu=gpu, gpus=gpus)
+    # Compile custom aliases once for the whole batch to avoid per-report overhead.
+    compiled = _compile_aliases(aliases) if aliases is not None else None
     out: list[ReportResult] = []
     for rid, anno in zip(ids, annotations):
         labels, matches, parsed_text = label_study(
             anno,
-            aliases=aliases,
+            _compiled=compiled,
             apply_exclude=apply_exclude,
             uncertainty_policy=uncertainty_policy,
         )

@@ -14,6 +14,7 @@ See :mod:`radlabels.aliases` for the dictionary schema.
 from __future__ import annotations
 
 from collections import defaultdict
+from dataclasses import dataclass, field
 from functools import lru_cache
 from typing import Iterable
 
@@ -202,6 +203,46 @@ def _indices_for_alias(
 
 
 # ------------------------------------------------------------------ #
+#                      COMPILED-ALIASES HELPER                       #
+# ------------------------------------------------------------------ #
+@dataclass
+class _CompiledAliases:
+    label_names: list[str]
+    all_phrases: dict[str, list[str]]
+    alias_toklists: dict[str, list[list[str]]]
+    alias_toksets: dict[str, list[set[str]]]
+    excl_toksets: dict[str, list[set[str]]]
+
+
+def _compile_aliases(aliases: dict) -> _CompiledAliases:
+    """Compile a custom alias dict into lookup tables (once per batch)."""
+    label_names = sorted(aliases.keys())
+    pretty = {d: d.replace("_", " ") for d in label_names}
+    all_phrases: dict[str, list[str]] = {}
+    alias_toklists: dict[str, list[list[str]]] = {}
+    alias_toksets: dict[str, list[set[str]]] = {}
+    excl_toksets: dict[str, list[set[str]]] = {}
+    for dz in label_names:
+        spec = aliases[dz]
+        base = list(spec.get("aliases", []))
+        if base:
+            base = [pretty[dz]] + base
+        phrases, toklists, toksets = _build_phrase_tokensets(base)
+        all_phrases[dz] = phrases
+        alias_toklists[dz] = toklists
+        alias_toksets[dz] = toksets
+        _, _, excl = _build_phrase_tokensets(spec.get("exclude", []))
+        excl_toksets[dz] = excl
+    return _CompiledAliases(
+        label_names=label_names,
+        all_phrases=all_phrases,
+        alias_toklists=alias_toklists,
+        alias_toksets=alias_toksets,
+        excl_toksets=excl_toksets,
+    )
+
+
+# ------------------------------------------------------------------ #
 #                          PUBLIC ENTRY POINT                        #
 # ------------------------------------------------------------------ #
 def label_study(
@@ -209,6 +250,7 @@ def label_study(
     annotator_key: str = "0",
     *,
     aliases: dict | None = None,
+    _compiled: "_CompiledAliases | None" = None,
     apply_exclude: bool = True,
     uncertainty_policy: str = "keep",
 ) -> tuple[dict[str, str], list[dict], str]:
@@ -259,26 +301,21 @@ def label_study(
     text = sub.get("text", "") or ""
     entities = sub["entities"]
 
-    # Resolve alias lookup tables: use per-call custom tables or the precomputed ones.
-    if aliases is not None:
-        custom_labels = sorted(aliases.keys())
-        all_phrases_: dict[str, list[str]] = {}
-        alias_toksets_: dict[str, list[set[str]]] = {}
-        alias_toklists_: dict[str, list[list[str]]] = {}
-        excl_toksets_: dict[str, list[set[str]]] = {}
-        pretty_ = {d: d.replace("_", " ") for d in custom_labels}
-        for dz in custom_labels:
-            spec = aliases[dz]
-            base = list(spec.get("aliases", []))
-            if base:
-                base = [pretty_[dz]] + base
-            phrases, toklists, toksets = _build_phrase_tokensets(base)
-            all_phrases_[dz] = phrases
-            alias_toklists_[dz] = toklists
-            alias_toksets_[dz] = toksets
-            _, _, excl = _build_phrase_tokensets(spec.get("exclude", []))
-            excl_toksets_[dz] = excl
-        label_names = custom_labels
+    # Resolve alias lookup tables.
+    # Priority: _compiled (pre-built, batch path) > aliases (single-call convenience) > builtins.
+    if _compiled is not None:
+        c = _compiled
+    elif aliases is not None:
+        c = _compile_aliases(aliases)
+    else:
+        c = None
+
+    if c is not None:
+        label_names = c.label_names
+        all_phrases_ = c.all_phrases
+        alias_toksets_ = c.alias_toksets
+        alias_toklists_ = c.alias_toklists
+        excl_toksets_ = c.excl_toksets
     else:
         label_names = LABEL_NAMES
         all_phrases_ = _ALL_PHRASES
