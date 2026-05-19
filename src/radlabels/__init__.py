@@ -51,6 +51,7 @@ def label_reports(
     ids: Sequence[str] | None = None,
     gpu: int | None = None,
     gpus: Sequence[int] | None = None,
+    aliases: dict | None = None,
     apply_exclude: bool = True,
     uncertainty_policy: str = "keep",
 ) -> list[ReportResult]:
@@ -64,6 +65,10 @@ def label_reports(
         Optional report identifiers. Defaults to ``["report_0001", ...]``.
     gpu, gpus
         See :func:`radlabels.radgraph_runner.run_radgraph`.
+    aliases
+        Custom alias dictionary following the ``ALIASES`` schema.  When
+        provided, it **fully replaces** the built-in dictionary for every
+        report.  Pass ``None`` (default) to use the built-in dictionary.
     apply_exclude, uncertainty_policy
         Forwarded to :func:`label_study`.
     """
@@ -79,6 +84,7 @@ def label_reports(
     for rid, anno in zip(ids, annotations):
         labels, matches, parsed_text = label_study(
             anno,
+            aliases=aliases,
             apply_exclude=apply_exclude,
             uncertainty_policy=uncertainty_policy,
         )
