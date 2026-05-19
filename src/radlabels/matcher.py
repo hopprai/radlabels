@@ -208,6 +208,7 @@ def label_study(
     rg_anno: dict,
     annotator_key: str = "0",
     *,
+    aliases: dict | None = None,
     apply_exclude: bool = True,
     uncertainty_policy: str = "keep",
 ) -> tuple[dict[str, str], list[dict], str]:
@@ -223,6 +224,10 @@ def label_study(
                                        "end_ix", "relations"}}}}
     annotator_key
         Which annotator key to read from ``rg_anno``. Defaults to ``"0"``.
+    aliases
+        Custom alias dictionary following the ``ALIASES`` schema.  When
+        provided, it **fully replaces** the built-in dictionary for this call.
+        Pass ``None`` (default) to use the built-in dictionary.
     apply_exclude
         If True (default), an ``exclude`` phrase appearing in the same
         relational neighborhood as a seed vetoes the hit for that label.
@@ -254,6 +259,33 @@ def label_study(
     text = sub.get("text", "") or ""
     entities = sub["entities"]
 
+    # Resolve alias lookup tables: use per-call custom tables or the precomputed ones.
+    if aliases is not None:
+        custom_labels = sorted(aliases.keys())
+        all_phrases_: dict[str, list[str]] = {}
+        alias_toksets_: dict[str, list[set[str]]] = {}
+        alias_toklists_: dict[str, list[list[str]]] = {}
+        excl_toksets_: dict[str, list[set[str]]] = {}
+        pretty_ = {d: d.replace("_", " ") for d in custom_labels}
+        for dz in custom_labels:
+            spec = aliases[dz]
+            base = list(spec.get("aliases", []))
+            if base:
+                base = [pretty_[dz]] + base
+            phrases, toklists, toksets = _build_phrase_tokensets(base)
+            all_phrases_[dz] = phrases
+            alias_toklists_[dz] = toklists
+            alias_toksets_[dz] = toksets
+            _, _, excl = _build_phrase_tokensets(spec.get("exclude", []))
+            excl_toksets_[dz] = excl
+        label_names = custom_labels
+    else:
+        label_names = LABEL_NAMES
+        all_phrases_ = _ALL_PHRASES
+        alias_toksets_ = _ALIAS_TOKEN_SETS
+        alias_toklists_ = _ALIAS_TOKEN_LISTS
+        excl_toksets_ = _EXCLUDE_TOKEN_SETS
+
     # Pass 1: compute status + relational neighborhood for every Observation seed.
     entity_status: dict[str, str] = {}
     token_sets: dict[str, set[str]] = {}
@@ -271,8 +303,8 @@ def label_study(
     labels: dict[str, str] = {}
     matches: list[dict] = []
 
-    for dz in LABEL_NAMES:
-        excl_sets = _EXCLUDE_TOKEN_SETS[dz] if apply_exclude else []
+    for dz in label_names:
+        excl_sets = excl_toksets_[dz] if apply_exclude else []
 
         # alias_phrase -> [(status, indices), ...]
         alias_hits: dict[str, list[tuple[str, list[int]]]] = defaultdict(list)
@@ -284,7 +316,7 @@ def label_study(
                 continue
 
             for phrase, alias_tokset, alias_toklist in zip(
-                _ALL_PHRASES[dz], _ALIAS_TOKEN_SETS[dz], _ALIAS_TOKEN_LISTS[dz]
+                all_phrases_[dz], alias_toksets_[dz], alias_toklists_[dz]
             ):
                 if not alias_tokset.issubset(ts):
                     continue
