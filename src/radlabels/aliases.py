@@ -932,3 +932,70 @@ ALIASES: dict[str, dict[str, list[str]]] = {
 }
 
 LABEL_NAMES: list[str] = sorted(ALIASES.keys())
+
+# ---------------------------------------------------------------------------
+# Two-level taxonomy: leaf label → parent group.
+# Derived from Table 8 in Delbrouck et al. (2026).  Parent labels (the values)
+# are not in ALIASES and carry no aliases of their own; they are derived
+# automatically from their children at label-compilation time.
+# ---------------------------------------------------------------------------
+PARENT_MAP: dict[str, str] = {
+    # pulmonary_abnormality
+    "air_space_opacity": "pulmonary_abnormality",
+    "atelectasis": "pulmonary_abnormality",
+    "consolidation": "pulmonary_abnormality",
+    "ground_glass_opacity": "pulmonary_abnormality",
+    "pneumonia": "pulmonary_abnormality",
+    "bullous_disease": "pulmonary_abnormality",
+    "emphysema": "pulmonary_abnormality",
+    "hyperinflation": "pulmonary_abnormality",
+    "infiltration": "pulmonary_abnormality",
+    "interstitial_thickening": "pulmonary_abnormality",
+    "lobar_segmental_collapse": "pulmonary_abnormality",
+    "lung_lesion": "pulmonary_abnormality",
+    "lung_nodule_or_mass": "pulmonary_abnormality",
+    "lung_opacity": "pulmonary_abnormality",
+    "pulmonary_edema": "pulmonary_abnormality",
+    "pulmonary_fibrosis": "pulmonary_abnormality",
+    "whole_lung_or_majority_collapse": "pulmonary_abnormality",
+    # pleural_abnormality
+    "pleural_effusion": "pleural_abnormality",
+    "pleural_other": "pleural_abnormality",
+    "pleural_thickening": "pleural_abnormality",
+    "pneumothorax": "pleural_abnormality",
+    # cardiomediastinal_abnormality
+    "calcification_of_the_aorta": "cardiomediastinal_abnormality",
+    "cardiomegaly": "cardiomediastinal_abnormality",
+    "enlarged_cardiomediastinum": "cardiomediastinal_abnormality",
+    "pulmonary_artery_enlargement": "cardiomediastinal_abnormality",
+    "pulmonary_congestion_pulmonary_venous_congestion": "cardiomediastinal_abnormality",
+    "tortuous_aorta": "cardiomediastinal_abnormality",
+    # airway_abnormality
+    "bronchial_wall_thickening": "airway_abnormality",
+    "peribronchial_cuffing": "airway_abnormality",
+    "tracheal_deviation": "airway_abnormality",
+    # hilar_abnormality
+    "hilar_lymphadenopathy": "hilar_abnormality",
+    # fracture_or_trauma
+    "acute_rib_fracture": "fracture_or_trauma",
+    "fracture_generic": "fracture_or_trauma",
+    "non_acute_rib_fracture": "fracture_or_trauma",
+    "shoulder_dislocation": "fracture_or_trauma",
+    "subcutaneous_emphysema": "fracture_or_trauma",
+    # mediastinal_or_abdominal_air
+    "pneumomediastinum": "mediastinal_or_abdominal_air",
+    "pneumoperitoneum": "mediastinal_or_abdominal_air",
+    # hernia_abnormality
+    "hiatus_hernia": "hernia_abnormality",
+    "other_hernia": "hernia_abnormality",
+    # support_devices
+    "central_venous_catheter": "support_devices",
+    "endotracheal_tube": "support_devices",
+    "enteric_tube": "support_devices",
+    "implantable_electronic_device": "support_devices",
+    "intercostal_drain": "support_devices",
+    "nonsurgical_internal_foreign_body": "support_devices",
+    "pacemaker_electronic_cardiac_device_or_wires": "support_devices",
+    "support_devices_generic": "support_devices",
+    "tracheostomy_tube": "support_devices",
+}

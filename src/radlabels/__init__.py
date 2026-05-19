@@ -17,7 +17,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Sequence
 
-from .aliases import ALIAS_VERSION, ALIASES
+from .aliases import ALIAS_VERSION, ALIASES, PARENT_MAP
 from .matcher import LABEL_NAMES, label_study
 from ._validation import validate_aliases
 
@@ -25,6 +25,7 @@ __all__ = [
     "ALIAS_VERSION",
     "ALIASES",
     "LABEL_NAMES",
+    "PARENT_MAP",
     "label_study",
     "label_reports",
     "validate_aliases",
