@@ -19,6 +19,7 @@ from typing import Sequence
 
 from .aliases import ALIAS_VERSION, ALIASES
 from .matcher import LABEL_NAMES, label_study
+from ._validation import validate_aliases
 
 __all__ = [
     "ALIAS_VERSION",
@@ -26,6 +27,7 @@ __all__ = [
     "LABEL_NAMES",
     "label_study",
     "label_reports",
+    "validate_aliases",
     "ReportResult",
 ]
 
