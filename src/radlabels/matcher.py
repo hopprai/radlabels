@@ -64,7 +64,7 @@ def _build_phrase_tokensets(
     phrases: Iterable[str],
 ) -> tuple[list[str], list[list[str]], list[set[str]]]:
     """Normalize a list of phrases into (canonical_strings, token_lists, token_sets)."""
-    normed = sorted({" ".join(normalize_tokens(p.lower())) for p in phrases if p})
+    normed = sorted({" ".join(normalize_tokens(p)) for p in phrases if p})
     normed = [p for p in normed if p]
     toklists = [normalize_tokens(p) for p in normed]
     toksets = [set(tl) for tl in toklists]

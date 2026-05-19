@@ -17,21 +17,19 @@ in the same process do not pay the warmup cost twice.
 """
 from __future__ import annotations
 
+import functools
 import os
 import time
 from typing import Sequence
 
-_MODEL_CACHE: dict[tuple[str, int], object] = {}
 
-
+@functools.lru_cache(maxsize=2)
 def _get_model(model_type: str, cuda: int):
     """Load (and cache) a RadGraph model on the given CUDA device.
 
-    ``cuda=-1`` means CPU.
+    ``cuda=-1`` means CPU. Results are cached per (model_type, cuda) pair;
+    at most two models are held in memory simultaneously.
     """
-    key = (model_type, cuda)
-    if key in _MODEL_CACHE:
-        return _MODEL_CACHE[key]
     # The upstream radgraph package compiles with torch.dynamo on first call,
     # which requires triton to be installed. We don't need the dynamo speedup,
     # so suppress errors and fall back to eager execution.
@@ -48,7 +46,6 @@ def _get_model(model_type: str, cuda: int):
         _ = model(["warmup text"])
     except Exception:
         pass
-    _MODEL_CACHE[key] = model
     return model
 
 
