@@ -214,3 +214,45 @@ def test_bundled_corpus_match_indices_well_formed(bundled_matches):
             assert len(m["start_ix"]) == n_words, \
                 f"{rid}: alias {m['alias']!r} has {n_words} words "\
                 f"but {len(m['start_ix'])} indices"
+
+
+# ------------------------------------------------------------------ #
+#                   custom aliases parameter                         #
+# ------------------------------------------------------------------ #
+def test_custom_aliases_replaces_builtin():
+    """When aliases= is supplied, only the custom labels should fire."""
+    text = "FINDINGS : Cardiomegaly ."
+    anno = _anno(text, {
+        "1": {
+            "tokens": "Cardiomegaly", "label": "Observation::definitely present",
+            "start_ix": 2, "end_ix": 2, "relations": [],
+        },
+    })
+    custom = {
+        "my_finding": {
+            "aliases": ["cardiomegaly"],
+            "exclude": [],
+        }
+    }
+    labels, _, _ = label_study(anno, aliases=custom)
+    assert "my_finding" in labels
+    assert "cardiomegaly" not in labels, "built-in labels must not fire when custom aliases given"
+
+
+def test_orjson_annotation_roundtrip():
+    """label_study result must be identical after JSON round-tripping the annotation."""
+    import orjson
+    anno = _anno("FINDINGS : Cardiomegaly .", {
+        "1": {
+            "tokens": "Cardiomegaly", "label": "Observation::definitely present",
+            "start_ix": 2, "end_ix": 2, "relations": [],
+        },
+    })
+    labels_direct, matches_direct, _ = label_study(anno)
+
+    # Round-trip through orjson (simulates --save-radgraph-cache / --radgraph-cache).
+    anno_rt = orjson.loads(orjson.dumps(anno))
+    labels_rt, matches_rt, _ = label_study(anno_rt)
+
+    assert labels_direct == labels_rt
+    assert matches_direct == matches_rt

@@ -14,6 +14,7 @@ See :mod:`radlabels.aliases` for the dictionary schema.
 from __future__ import annotations
 
 from collections import defaultdict
+from dataclasses import dataclass
 from functools import lru_cache
 from typing import Iterable
 
@@ -64,8 +65,7 @@ def _build_phrase_tokensets(
     phrases: Iterable[str],
 ) -> tuple[list[str], list[list[str]], list[set[str]]]:
     """Normalize a list of phrases into (canonical_strings, token_lists, token_sets)."""
-    normed = sorted({" ".join(normalize_tokens(p.lower())) for p in phrases if p})
-    normed = [p for p in normed if p]
+    normed = sorted({" ".join(normalize_tokens(p)) for p in phrases if p} - {""})
     toklists = [normalize_tokens(p) for p in normed]
     toksets = [set(tl) for tl in toklists]
     return normed, toklists, toksets
@@ -106,6 +106,7 @@ _OBS_MAP = {
 }
 _MODIFIER_REL = "modify"
 _STATUS_PRIORITY = ("definitely present", "uncertain", "definitely absent")
+_VALID_UNCERTAINTY_POLICIES = frozenset({"keep", "as_positive", "as_negative", "drop"})
 
 
 def canonical_status(rg_label: str, relations: list[tuple[str, str]]) -> str | None:
@@ -139,9 +140,7 @@ def _explode_entity_tokens(ent: dict) -> list[tuple[str, int]]:
     """Convert ``{"tokens": "w1 w2", "start_ix": k, ...}`` to ``[(w1, k), (w2, k+1)]``."""
     words = normalize_tokens(ent.get("tokens", ""))
     start_ix = int(ent.get("start_ix", 0))
-    idxs = list(range(start_ix, start_ix + len(words)))
-    L = min(len(words), len(idxs))
-    return [(words[i], idxs[i]) for i in range(L)]
+    return [(w, start_ix + i) for i, w in enumerate(words)]
 
 
 def _candidate_token_map(
@@ -202,12 +201,54 @@ def _indices_for_alias(
 
 
 # ------------------------------------------------------------------ #
+#                      COMPILED-ALIASES HELPER                       #
+# ------------------------------------------------------------------ #
+@dataclass
+class _CompiledAliases:
+    label_names: list[str]
+    all_phrases: dict[str, list[str]]
+    alias_toklists: dict[str, list[list[str]]]
+    alias_toksets: dict[str, list[set[str]]]
+    excl_toksets: dict[str, list[set[str]]]
+
+
+def _compile_aliases(aliases: dict) -> _CompiledAliases:
+    """Compile a custom alias dict into lookup tables (once per batch)."""
+    label_names = sorted(aliases.keys())
+    pretty = {d: d.replace("_", " ") for d in label_names}
+    all_phrases: dict[str, list[str]] = {}
+    alias_toklists: dict[str, list[list[str]]] = {}
+    alias_toksets: dict[str, list[set[str]]] = {}
+    excl_toksets: dict[str, list[set[str]]] = {}
+    for dz in label_names:
+        spec = aliases[dz]
+        base = list(spec.get("aliases", []))
+        if base:
+            base = [pretty[dz]] + base
+        phrases, toklists, toksets = _build_phrase_tokensets(base)
+        all_phrases[dz] = phrases
+        alias_toklists[dz] = toklists
+        alias_toksets[dz] = toksets
+        _, _, excl = _build_phrase_tokensets(spec.get("exclude", []))
+        excl_toksets[dz] = excl
+    return _CompiledAliases(
+        label_names=label_names,
+        all_phrases=all_phrases,
+        alias_toklists=alias_toklists,
+        alias_toksets=alias_toksets,
+        excl_toksets=excl_toksets,
+    )
+
+
+# ------------------------------------------------------------------ #
 #                          PUBLIC ENTRY POINT                        #
 # ------------------------------------------------------------------ #
 def label_study(
     rg_anno: dict,
     annotator_key: str = "0",
     *,
+    aliases: dict | None = None,
+    _compiled: "_CompiledAliases | None" = None,
     apply_exclude: bool = True,
     uncertainty_policy: str = "keep",
 ) -> tuple[dict[str, str], list[dict], str]:
@@ -223,6 +264,10 @@ def label_study(
                                        "end_ix", "relations"}}}}
     annotator_key
         Which annotator key to read from ``rg_anno``. Defaults to ``"0"``.
+    aliases
+        Custom alias dictionary following the ``ALIASES`` schema.  When
+        provided, it **fully replaces** the built-in dictionary for this call.
+        Pass ``None`` (default) to use the built-in dictionary.
     apply_exclude
         If True (default), an ``exclude`` phrase appearing in the same
         relational neighborhood as a seed vetoes the hit for that label.
@@ -247,12 +292,40 @@ def label_study(
     text : str
         The pre-tokenized report text from RadGraph.
     """
+    if uncertainty_policy not in _VALID_UNCERTAINTY_POLICIES:
+        raise ValueError(
+            f"uncertainty_policy must be one of {sorted(_VALID_UNCERTAINTY_POLICIES)!r}, "
+            f"got {uncertainty_policy!r}"
+        )
+
     sub = rg_anno.get(annotator_key) if isinstance(rg_anno, dict) else None
     if not sub or "entities" not in sub:
         return {}, [], ""
 
     text = sub.get("text", "") or ""
     entities = sub["entities"]
+
+    # Resolve alias lookup tables.
+    # Priority: _compiled (pre-built, batch path) > aliases (single-call convenience) > builtins.
+    if _compiled is not None:
+        c = _compiled
+    elif aliases is not None:
+        c = _compile_aliases(aliases)
+    else:
+        c = None
+
+    if c is not None:
+        label_names = c.label_names
+        all_phrases_ = c.all_phrases
+        alias_toksets_ = c.alias_toksets
+        alias_toklists_ = c.alias_toklists
+        excl_toksets_ = c.excl_toksets
+    else:
+        label_names = LABEL_NAMES
+        all_phrases_ = _ALL_PHRASES
+        alias_toksets_ = _ALIAS_TOKEN_SETS
+        alias_toklists_ = _ALIAS_TOKEN_LISTS
+        excl_toksets_ = _EXCLUDE_TOKEN_SETS
 
     # Pass 1: compute status + relational neighborhood for every Observation seed.
     entity_status: dict[str, str] = {}
@@ -271,8 +344,8 @@ def label_study(
     labels: dict[str, str] = {}
     matches: list[dict] = []
 
-    for dz in LABEL_NAMES:
-        excl_sets = _EXCLUDE_TOKEN_SETS[dz] if apply_exclude else []
+    for dz in label_names:
+        excl_sets = excl_toksets_[dz] if apply_exclude else []
 
         # alias_phrase -> [(status, indices), ...]
         alias_hits: dict[str, list[tuple[str, list[int]]]] = defaultdict(list)
@@ -284,7 +357,7 @@ def label_study(
                 continue
 
             for phrase, alias_tokset, alias_toklist in zip(
-                _ALL_PHRASES[dz], _ALIAS_TOKEN_SETS[dz], _ALIAS_TOKEN_LISTS[dz]
+                all_phrases_[dz], alias_toksets_[dz], alias_toklists_[dz]
             ):
                 if not alias_tokset.issubset(ts):
                     continue
@@ -305,20 +378,13 @@ def label_study(
         if not alias_hits:
             continue
 
-        resolved: list[tuple[str, str, list[int]]] = []
+        phrase_statuses: list[str] = []
         for phrase, hits in alias_hits.items():
             final_status = _collapse_statuses(s for s, _ in hits)
-            idx_list = next((ix for (s, ix) in hits if s == final_status), hits[0][1])
-            resolved.append((phrase, final_status, idx_list))
+            idx_list = next((ix for s, ix in hits if s == final_status), hits[0][1])
+            matches.append({"disease": dz, "alias": phrase, "label": final_status, "start_ix": idx_list})
+            phrase_statuses.append(final_status)
 
-        for phrase, final_status, idx_list in resolved:
-            matches.append({
-                "disease": dz,
-                "alias": phrase,
-                "label": final_status,
-                "start_ix": idx_list,
-            })
-
-        labels[dz] = _collapse_statuses(s for _, s, _ in resolved)
+        labels[dz] = _collapse_statuses(phrase_statuses)
 
     return labels, matches, text

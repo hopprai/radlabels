@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "radlabels"
-version = "0.1.0"
+version = "0.2.0"
 description = "Radiologist-defined disease labels for free-text radiology reports."
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -15,12 +15,9 @@ dependencies = [
     "torch>=2.1,<2.5",
     "transformers>=4.39,<5",
     "nltk>=3.8",
-    "ijson>=3.2",
     "orjson>=3.9",
-    "tqdm>=4.66",
     "rich>=13.7",
     "click>=8.1",
-    "requests>=2.28",
 ]
 
 [project.optional-dependencies]
@@ -32,6 +29,9 @@ radlabels = "radlabels.cli:main"
 [project.urls]
 Homepage = "https://github.com/jbdel/radiological-labels"
 Repository = "https://github.com/jbdel/radiological-labels"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/radlabels"]

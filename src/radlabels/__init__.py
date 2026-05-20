@@ -17,19 +17,22 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Sequence
 
-from .aliases import ALIAS_VERSION, ALIASES
-from .matcher import LABEL_NAMES, label_study
+from .aliases import ALIAS_VERSION, ALIASES, PARENT_MAP
+from .matcher import LABEL_NAMES, _compile_aliases, label_study
+from ._validation import validate_aliases
 
 __all__ = [
     "ALIAS_VERSION",
     "ALIASES",
     "LABEL_NAMES",
+    "PARENT_MAP",
     "label_study",
     "label_reports",
+    "validate_aliases",
     "ReportResult",
 ]
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 
 @dataclass
@@ -48,6 +51,7 @@ def label_reports(
     ids: Sequence[str] | None = None,
     gpu: int | None = None,
     gpus: Sequence[int] | None = None,
+    aliases: dict | None = None,
     apply_exclude: bool = True,
     uncertainty_policy: str = "keep",
 ) -> list[ReportResult]:
@@ -61,6 +65,10 @@ def label_reports(
         Optional report identifiers. Defaults to ``["report_0001", ...]``.
     gpu, gpus
         See :func:`radlabels.radgraph_runner.run_radgraph`.
+    aliases
+        Custom alias dictionary following the ``ALIASES`` schema.  When
+        provided, it **fully replaces** the built-in dictionary for every
+        report.  Pass ``None`` (default) to use the built-in dictionary.
     apply_exclude, uncertainty_policy
         Forwarded to :func:`label_study`.
     """
@@ -72,10 +80,13 @@ def label_reports(
         raise ValueError("len(ids) must equal len(texts)")
 
     annotations = run_radgraph(list(texts), gpu=gpu, gpus=gpus)
+    # Compile custom aliases once for the whole batch to avoid per-report overhead.
+    compiled = _compile_aliases(aliases) if aliases is not None else None
     out: list[ReportResult] = []
     for rid, anno in zip(ids, annotations):
         labels, matches, parsed_text = label_study(
             anno,
+            _compiled=compiled,
             apply_exclude=apply_exclude,
             uncertainty_policy=uncertainty_policy,
         )
