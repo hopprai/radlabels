@@ -23,7 +23,6 @@ def validate_aliases(aliases: dict) -> list[str]:
     list[str]
         Empty list means the dictionary is clean.
     """
-    messages: list[str] = []
     errors: list[str] = []
     warnings: list[str] = []
 

@@ -14,7 +14,7 @@ See :mod:`radlabels.aliases` for the dictionary schema.
 from __future__ import annotations
 
 from collections import defaultdict
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from functools import lru_cache
 from typing import Iterable
 
@@ -65,8 +65,7 @@ def _build_phrase_tokensets(
     phrases: Iterable[str],
 ) -> tuple[list[str], list[list[str]], list[set[str]]]:
     """Normalize a list of phrases into (canonical_strings, token_lists, token_sets)."""
-    normed = sorted({" ".join(normalize_tokens(p)) for p in phrases if p})
-    normed = [p for p in normed if p]
+    normed = sorted({" ".join(normalize_tokens(p)) for p in phrases if p} - {""})
     toklists = [normalize_tokens(p) for p in normed]
     toksets = [set(tl) for tl in toklists]
     return normed, toklists, toksets
@@ -107,6 +106,7 @@ _OBS_MAP = {
 }
 _MODIFIER_REL = "modify"
 _STATUS_PRIORITY = ("definitely present", "uncertain", "definitely absent")
+_VALID_UNCERTAINTY_POLICIES = frozenset({"keep", "as_positive", "as_negative", "drop"})
 
 
 def canonical_status(rg_label: str, relations: list[tuple[str, str]]) -> str | None:
@@ -140,9 +140,7 @@ def _explode_entity_tokens(ent: dict) -> list[tuple[str, int]]:
     """Convert ``{"tokens": "w1 w2", "start_ix": k, ...}`` to ``[(w1, k), (w2, k+1)]``."""
     words = normalize_tokens(ent.get("tokens", ""))
     start_ix = int(ent.get("start_ix", 0))
-    idxs = list(range(start_ix, start_ix + len(words)))
-    L = min(len(words), len(idxs))
-    return [(words[i], idxs[i]) for i in range(L)]
+    return [(w, start_ix + i) for i, w in enumerate(words)]
 
 
 def _candidate_token_map(
@@ -294,6 +292,12 @@ def label_study(
     text : str
         The pre-tokenized report text from RadGraph.
     """
+    if uncertainty_policy not in _VALID_UNCERTAINTY_POLICIES:
+        raise ValueError(
+            f"uncertainty_policy must be one of {sorted(_VALID_UNCERTAINTY_POLICIES)!r}, "
+            f"got {uncertainty_policy!r}"
+        )
+
     sub = rg_anno.get(annotator_key) if isinstance(rg_anno, dict) else None
     if not sub or "entities" not in sub:
         return {}, [], ""
@@ -374,20 +378,13 @@ def label_study(
         if not alias_hits:
             continue
 
-        resolved: list[tuple[str, str, list[int]]] = []
+        phrase_statuses: list[str] = []
         for phrase, hits in alias_hits.items():
             final_status = _collapse_statuses(s for s, _ in hits)
-            idx_list = next((ix for (s, ix) in hits if s == final_status), hits[0][1])
-            resolved.append((phrase, final_status, idx_list))
+            idx_list = next((ix for s, ix in hits if s == final_status), hits[0][1])
+            matches.append({"disease": dz, "alias": phrase, "label": final_status, "start_ix": idx_list})
+            phrase_statuses.append(final_status)
 
-        for phrase, final_status, idx_list in resolved:
-            matches.append({
-                "disease": dz,
-                "alias": phrase,
-                "label": final_status,
-                "start_ix": idx_list,
-            })
-
-        labels[dz] = _collapse_statuses(s for _, s, _ in resolved)
+        labels[dz] = _collapse_statuses(phrase_statuses)
 
     return labels, matches, text
