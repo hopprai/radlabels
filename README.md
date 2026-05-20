@@ -1,9 +1,10 @@
 # radlabels
 
-**Turn radiology report text into structured disease labels.** A small
-radiologist-defined dictionary on top of [RadGraph-XL](https://github.com/Stanford-AIMI/radgraph).
+**Convert radiology report text into structured disease labels.**
+
+A small, radiologist-defined dictionary on top of [RadGraph-XL](https://github.com/Stanford-AIMI/radgraph).
 No model training, no API keys, no fixed taxonomy: to add a new finding
-you write a few phrases.
+you simply write a few phrases.
 
 ```bash
 pip install radlabels
@@ -12,7 +13,7 @@ radlabels demo
 
 The package ships with **49 findings**, **649 alias phrases**, and a
 **1000-report demo corpus** with pre-computed labels so the demo runs
-instantly with no GPU.
+instantly without GPU.
 
 ---
 
@@ -43,8 +44,8 @@ instantly with no GPU.
 4. Every label points back to the exact tokens that fired it, so a reviewer
    can audit any label in seconds.
 
-Editing or adding a finding is a phrase edit. The expensive RadGraph step is
-paid once per report and never repeated.
+Editing or adding a finding is a phrase edit. The expensive RadGraph step runs
+once per report and is never repeated.
 
 ---
 
@@ -222,8 +223,8 @@ Reference numbers measured on this hardware:
 
 (Steady-state, model warmup excluded.)
 
-For a full corpus relabel, multi-GPU scales linearly; on a 3 × A100 box
-relabeling 100 k reports takes about **22 minutes**.
+Multi-GPU scales linearly; on a 3 × A100 box, labeling 100 k reports takes
+about **22 minutes**.
 
 ---
 
@@ -295,7 +296,7 @@ A few labels also carry an `exclude` clause that vetoes false positives, e.g.
 
 Both `label_study` and `label_reports` accept:
 
-- **`apply_exclude=True`** — disable the per-label exclude clauses.
+- **`apply_exclude=False`** — disable the per-label exclude clauses (default is `True`).
 - **`uncertainty_policy="keep" | "as_positive" | "as_negative" | "drop"`** —
   what to do with `uncertain` per-seed statuses. Default keeps them as a
   separate status; the others map them to present / absent / drop them
@@ -337,7 +338,7 @@ results = label_reports(texts, aliases=my_dict)
 ```
 
 The dictionary schema mirrors `ALIASES` — each key maps to `{"aliases": [...], "exclude": [...]}`.
-`validate_aliases()` returns schema errors and duplicate-phrase warnings before you commit to a run.
+`validate_aliases()` returns schema errors and duplicate-phrase warnings before running.
 
 ### Coarse-grained labels
 
