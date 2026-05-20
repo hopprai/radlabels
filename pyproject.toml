@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "radlabels"
-version = "0.1.0"
+version = "0.2.0"
 description = "Radiologist-defined disease labels for free-text radiology reports."
 readme = "README.md"
 license = { file = "LICENSE" }

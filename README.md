@@ -291,6 +291,8 @@ A few labels also carry an `exclude` clause that vetoes false positives, e.g.
 
 ## Tuning knobs
 
+### Uncertainty policy
+
 Both `label_study` and `label_reports` accept:
 
 - **`apply_exclude=True`** — disable the per-label exclude clauses.
@@ -298,6 +300,62 @@ Both `label_study` and `label_reports` accept:
   what to do with `uncertain` per-seed statuses. Default keeps them as a
   separate status; the others map them to present / absent / drop them
   entirely.
+
+### RadGraph cache
+
+Running RadGraph is the slowest step. Save annotations once and reload them on
+subsequent runs without touching the GPU:
+
+```bash
+# First run: save annotations
+radlabels label --file reports.json --save-radgraph-cache cache.json --out labels.json
+
+# Later runs: skip inference entirely
+radlabels label --file reports.json --radgraph-cache cache.json --out labels.json
+```
+
+Cache files include a `_meta` provenance header (radlabels version, alias version,
+timestamp) so cached outputs remain auditable.
+
+### Custom alias dictionaries
+
+Replace the built-in dictionary with your own for CLI or Python use:
+
+```bash
+radlabels label --file reports.json --radgraph-cache cache.json \
+    --custom-aliases my_aliases.json --out labels.json
+```
+
+```python
+from radlabels import label_reports, validate_aliases
+
+my_dict = {
+    "my_finding": {"aliases": ["ground glass", "hazy opacity"], "exclude": []},
+}
+errors = validate_aliases(my_dict)   # check schema before use
+results = label_reports(texts, aliases=my_dict)
+```
+
+The dictionary schema mirrors `ALIASES` — each key maps to `{"aliases": [...], "exclude": [...]}`.
+`validate_aliases()` returns schema errors and duplicate-phrase warnings before you commit to a run.
+
+### Coarse-grained labels
+
+`PARENT_MAP` maps all 49 leaf labels to 10 coarse parent groups, enabling hierarchical
+aggregation without a separate lookup table:
+
+```python
+from radlabels import PARENT_MAP, label_study
+
+labels, _, _ = label_study(anno)
+coarse = {}
+for leaf, status in labels.items():
+    parent = PARENT_MAP[leaf]
+    if parent not in coarse or status == "definitely present":
+        coarse[parent] = status
+```
+
+See `examples/04_fine_to_coarse.py` for rule-based and score-based aggregation helpers.
 
 ---
 
