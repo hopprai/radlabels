@@ -121,7 +121,7 @@ def demo(n_show: int, recompute: bool, show_text: bool) -> None:
               help="GPU index (single device). Defaults to autodetect.")
 @click.option("--gpus", default=None,
               help='Comma-separated GPU indices for data-parallel inference, e.g. "0,1,2".')
-@click.option("--radgraph-cache", "rg_cache_path",
+@click.option("--radgraph-cache", "load_rg_cache_path",
               type=click.Path(exists=True, dir_okay=False), default=None,
               help="Load pre-computed RadGraph annotations from this JSON file "
                    '({report_id: annotation}) and skip inference.')
@@ -141,7 +141,7 @@ def label(
     n_show: int,
     gpu: int | None,
     gpus: str | None,
-    rg_cache_path: str | None,
+    load_rg_cache_path: str | None,
     save_rg_cache_path: str | None,
     custom_aliases_path: str | None,
     verbose: bool,
@@ -151,7 +151,7 @@ def label(
         raise click.UsageError("Pass either --text or --file.")
     if inline_text is not None and in_file is not None:
         raise click.UsageError("Pass --text OR --file, not both.")
-    if rg_cache_path and save_rg_cache_path:
+    if load_rg_cache_path and save_rg_cache_path:
         raise click.UsageError(
             "--radgraph-cache and --save-radgraph-cache are mutually exclusive."
         )
@@ -185,8 +185,8 @@ def label(
         texts = [data[k] if isinstance(data[k], str) else "" for k in rids]
 
     # ---- run RadGraph or load from cache --------------------------------
-    if rg_cache_path:
-        annotations = _load_rg_cache(rg_cache_path, rids)
+    if load_rg_cache_path:
+        annotations = _load_rg_cache(load_rg_cache_path, rids)
     else:
         gpu_list: Sequence[int] | None = None
         if gpus:
