@@ -1,6 +1,7 @@
 """Command-line interface for radlabels."""
 from __future__ import annotations
 
+import datetime
 import logging
 import sys
 from pathlib import Path
@@ -9,7 +10,7 @@ from typing import Sequence
 import click
 import orjson
 
-from . import label_study  # noqa: F401
+from . import ReportResult, label_study  # noqa: F401
 from .aliases import ALIASES, ALIAS_VERSION  # noqa: F401
 from .formatting import (
     corpus_summary_table,
@@ -153,7 +154,8 @@ def label(
         raise click.UsageError("Pass --text OR --file, not both.")
     if load_rg_cache_path and save_rg_cache_path:
         raise click.UsageError(
-            "--radgraph-cache and --save-radgraph-cache are mutually exclusive."
+            "--radgraph-cache (load) and --save-radgraph-cache (save) are mutually "
+            "exclusive: use one to load an existing cache or the other to save a new one."
         )
 
     # ---- verbose logging setup ------------------------------------------
@@ -196,7 +198,14 @@ def label(
         annotations = run_radgraph(texts, gpu=gpu, gpus=gpu_list)
 
         if save_rg_cache_path:
-            cache_dump = {rid: anno for rid, anno in zip(rids, annotations)}
+            cache_dump = {
+                "_meta": {
+                    "radlabels_version": _radlabels_version(),
+                    "alias_version": ALIAS_VERSION,
+                    "created_at": datetime.datetime.utcnow().isoformat() + "Z",
+                },
+            }
+            cache_dump.update({rid: anno for rid, anno in zip(rids, annotations)})
             Path(save_rg_cache_path).parent.mkdir(parents=True, exist_ok=True)
             with open(save_rg_cache_path, "wb") as f:
                 f.write(orjson.dumps(cache_dump, option=orjson.OPT_INDENT_2))
@@ -208,7 +217,6 @@ def label(
             anno,
             aliases=aliases,
         )
-        from . import ReportResult
         results.append(ReportResult(
             report_id=rid,
             text=text,
@@ -259,6 +267,9 @@ def _load_rg_cache(cache_path: str, rids: list[str]) -> list[dict]:
     """Load pre-computed RadGraph annotations and validate them."""
     with open(cache_path, "rb") as f:
         cache: dict = orjson.loads(f.read())
+
+    # _meta is a provenance header, not an annotation — ignore it everywhere.
+    cache.pop("_meta", None)
 
     # Check all requested IDs are present.
     missing = [rid for rid in rids if rid not in cache]
