@@ -1,7 +1,0 @@
-This reordering is too similar to the original. I need to shuffle more aggressively.
-I can move the communication note. I can also reorder the impression points. I can also split sentences in FINDINGS.
-
-Let's try to put the most important findings first in the FINDINGS section, or mix them up.
-I need to be careful with the exact wording.
-
-Original FINDINGS

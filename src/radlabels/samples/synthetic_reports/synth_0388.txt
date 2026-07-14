@@ -1,9 +1,0 @@
-COMPARISON: Chest radiograph ___, chest CT ___
-EXAMINATION: CHEST (AP AND LAT)
-FINAL REPORT
-INDICATION: History: ___M with MDS presenting with lethargy, productive cough and fever since yesterday
-TECHNIQUE: Upright AP and lateral views of the chest
-
-IMPRESSION:
-
-1.  Patchy bibasilar airspace opacities may reflect ate

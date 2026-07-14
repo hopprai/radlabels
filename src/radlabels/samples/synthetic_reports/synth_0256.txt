@@ -1,9 +1,0 @@
-EXAMINATION: Chest radiograph
-
-INDICATION: Cold arm, preop evaluation. Assess cardiomegaly. Assess for infiltrate.
-
-COMPARISON: Chest radiograph ___.
-
-FINDINGS:
-
-No left pleural effusion. No pneumothorax. Limited assessment of the upper abdomen is within normal limits. Apparent widening of the mediastinal contour is most likely related to patient positioning and low lung volumes
