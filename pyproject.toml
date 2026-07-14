@@ -27,8 +27,10 @@ dev = ["pytest>=7", "ruff>=0.5"]
 radlabels = "radlabels.cli:main"
 
 [project.urls]
-Homepage = "https://github.com/jbdel/radiological-labels"
-Repository = "https://github.com/jbdel/radiological-labels"
+Homepage = "https://github.com/hopprai/radlabels"
+Repository = "https://github.com/hopprai/radlabels"
+Issues = "https://github.com/hopprai/radlabels/issues"
+Paper = "https://arxiv.org/abs/2607.06597"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -37,7 +39,12 @@ testpaths = ["tests"]
 packages = ["src/radlabels"]
 
 [tool.hatch.build.targets.sdist]
-include = ["src/radlabels", "examples", "tests", "README.md", "LICENSE", "pyproject.toml"]
-
-[tool.hatch.build.targets.wheel.force-include]
-"src/radlabels/samples" = "radlabels/samples"
+include = [
+    "src/radlabels",
+    "examples",
+    "tests",
+    "README.md",
+    "CITATION.cff",
+    "LICENSE",
+    "pyproject.toml",
+]

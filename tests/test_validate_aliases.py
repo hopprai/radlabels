@@ -1,8 +1,6 @@
 """Tests for :func:`radlabels._validation.validate_aliases`."""
 from __future__ import annotations
 
-import pytest
-
 from radlabels._validation import validate_aliases
 from radlabels.aliases import ALIASES
 
@@ -43,6 +41,20 @@ def test_non_string_phrase_is_error():
     msgs = validate_aliases(bad)
     errors = [m for m in msgs if m.startswith("ERROR")]
     assert errors
+
+
+def test_non_list_exclude_is_error():
+    bad = {"cardiomegaly": {"aliases": ["cardiomegaly"], "exclude": "pericardial effusion"}}
+    msgs = validate_aliases(bad)
+    errors = [m for m in msgs if m.startswith("ERROR")]
+    assert any("exclude" in error and "must be a list" in error for error in errors)
+
+
+def test_invalid_exclude_phrase_is_error():
+    bad = {"cardiomegaly": {"aliases": ["cardiomegaly"], "exclude": ["", 42]}}
+    msgs = validate_aliases(bad)
+    errors = [m for m in msgs if m.startswith("ERROR")]
+    assert len([error for error in errors if ".exclude[" in error]) == 2
 
 
 # ------------------------------------------------------------------ #

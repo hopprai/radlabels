@@ -45,7 +45,7 @@ def fine_to_coarse_labels(
     -------
     dict[str, str]
         Parent labels that have at least one child with a status.
-        Keys are the 10 parent group names; values are the collapsed status.
+        Keys are the nine parent group names; values are the collapsed status.
     """
     parent_statuses: dict[str, list[str]] = defaultdict(list)
     for leaf, status in fine_labels.items():

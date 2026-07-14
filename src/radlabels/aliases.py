@@ -936,8 +936,8 @@ LABEL_NAMES: list[str] = sorted(ALIASES.keys())
 # ---------------------------------------------------------------------------
 # Two-level taxonomy: leaf label → parent group.
 # Derived from Table 8 in Delbrouck et al. (2026).  Parent labels (the values)
-# are not in ALIASES and carry no aliases of their own; they are derived
-# automatically from their children at label-compilation time.
+# are not in ALIASES and carry no aliases of their own. Callers can aggregate
+# leaf outputs with this map; see examples/04_fine_to_coarse.py.
 # ---------------------------------------------------------------------------
 PARENT_MAP: dict[str, str] = {
     # pulmonary_abnormality

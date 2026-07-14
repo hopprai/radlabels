@@ -46,6 +46,19 @@ def validate_aliases(aliases: dict) -> list[str]:
                 errors.append(
                     f"ERROR: '{key}.aliases[{i}]' must be a non-empty string, got {phrase!r}"
                 )
+        exclude_list = entry.get("exclude", [])
+        if not isinstance(exclude_list, list):
+            errors.append(
+                f"ERROR: '{key}.exclude' must be a list, "
+                f"got {type(exclude_list).__name__}"
+            )
+            continue
+        for i, phrase in enumerate(exclude_list):
+            if not isinstance(phrase, str) or not phrase.strip():
+                errors.append(
+                    f"ERROR: '{key}.exclude[{i}]' must be a non-empty string, "
+                    f"got {phrase!r}"
+                )
 
     # ---- duplicate-phrase check (warnings) --------------------------------
     # Build normalized-phrase → [label, ...] mapping.

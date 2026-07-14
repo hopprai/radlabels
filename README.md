@@ -1,32 +1,52 @@
 # radlabels
 
-**Convert radiology report text into structured disease labels.**
+[![Paper](https://img.shields.io/badge/arXiv-2607.06597-b31b1b.svg)](https://arxiv.org/abs/2607.06597)
 
-A small, radiologist-defined dictionary on top of [RadGraph-XL](https://github.com/Stanford-AIMI/radgraph).
-No model training, no API keys, no fixed taxonomy: to add a new finding
-you simply write a few phrases.
+**Convert radiology reports into reconfigurable, auditable labels.**
+
+`radlabels` combines [RadGraph-XL](https://github.com/Stanford-AIMI/radgraph)
+with a radiologist-defined alias dictionary. It ships with 49 findings and 649
+alias phrases, but the label set is configurable: define a finding with the
+phrases radiologists use for it, inspect the report evidence that matched, and
+iterate without rerunning RadGraph when cached annotations are available.
+
+The method is described in
+[Reconfigurable Radiology Labels Without Relabeling](https://arxiv.org/abs/2607.06597).
+
+## Quick start
 
 ```bash
 pip install radlabels
 radlabels demo
 ```
 
-The package ships with **49 findings**, **649 alias phrases**, and a
-**1000-report demo corpus** with pre-computed labels so the demo runs
-instantly without GPU.
+`radlabels demo` uses the bundled 1,000-report corpus and precomputed labels,
+so it runs immediately without a GPU or model download.
+
+To label a new report, run:
+
+```bash
+radlabels label \
+  --text "FINDINGS: Small left pleural effusion. Cardiomegaly is stable."
+```
+
+Labeling new text invokes RadGraph. CPU is supported; a CUDA GPU is recommended
+for large corpora.
 
 ---
 
 ## Table of contents
 
 1. [How it works](#how-it-works)
-2. [Label your own reports](#1-label-your-own-reports)
-3. [Run the bundled corpus](#2-run-the-bundled-corpus)
-4. [Hardware and benchmarks](#hardware-and-benchmarks)
-5. [Label set](#label-set)
-6. [Tuning knobs](#tuning-knobs)
-7. [Citation](#citation)
-8. [License](#license)
+2. [Label your own reports](#label-your-own-reports)
+3. [Understand the output](#understand-the-output)
+4. [Create your own labels](#create-your-own-labels)
+5. [Bundled demo corpus](#bundled-demo-corpus)
+6. [Hardware and benchmarks](#hardware-and-benchmarks)
+7. [Built-in label set](#built-in-label-set)
+8. [Tuning knobs](#tuning-knobs)
+9. [Citation](#citation)
+10. [License](#license)
 
 ---
 
@@ -44,12 +64,12 @@ instantly without GPU.
 4. Every label points back to the exact tokens that fired it, so a reviewer
    can audit any label in seconds.
 
-Editing or adding a finding is a phrase edit. The expensive RadGraph step runs
-once per report and is never repeated.
+RadGraph is the expensive step. Save its annotations once, then edit aliases
+and recompile labels locally without repeating report inference.
 
 ---
 
-## 1. Label your own reports
+## Label your own reports
 
 ### Inline (single report)
 
@@ -72,7 +92,38 @@ radlabels label --text "FINDINGS: Small left pleural effusion. Cardiomegaly is s
 radlabels label --file my_reports.json --out labels.json --matches matches.json
 ```
 
-### Output
+### Python API
+
+```python
+from radlabels import label_reports
+
+[result] = label_reports(
+    ["FINDINGS: Small left pleural effusion. Cardiomegaly is stable."],
+    ids=["r0001"],
+)
+
+print(result.report_id)
+print(result.labels)
+for match in result.matches:
+    print(match["disease"], "<-", match["alias"], match["start_ix"])
+```
+
+Output (abridged):
+
+```text
+r0001
+{'cardiomegaly': 'definitely present', 'pleural_effusion': 'definitely present'}
+cardiomegaly <- cardiomegaly [6]
+pleural_effusion <- pleural effusion [3, 4]
+pleural_effusion <- small effusion [2, 4]
+```
+
+Each returned `ReportResult` contains `report_id`, RadGraph's tokenized `text`,
+the fired `labels`, and the evidence-level `matches`.
+
+---
+
+## Understand the output
 
 `labels.json` (one entry per report, only fired findings):
 
@@ -109,36 +160,112 @@ RadGraph. Status values are always one of
 `"definitely present"`, `"uncertain"`, `"definitely absent"`. **Missing
 keys mean "no evidence found"** — do not treat them as definitely absent.
 
-### Python API
+---
+
+## Create your own labels
+
+An alias is a phrase that should trigger a canonical label when it appears in
+the structured neighborhood RadGraph extracts. A custom dictionary is ordinary
+JSON:
+
+```json
+{
+  "left_ventricular_assist_device": {
+    "aliases": [
+      "left ventricular assist device",
+      "lvad"
+    ],
+    "exclude": []
+  }
+}
+```
+
+A practical workflow is:
+
+1. Choose a stable, `snake_case` label key.
+2. Add phrases that radiologists actually use in reports, including common
+   abbreviations and spelling variants.
+3. Add `exclude` phrases for known collisions. For example, the built-in
+   `pleural_effusion` label excludes `pericardial effusion`.
+4. Validate the dictionary before running it.
+5. Test on representative reports and inspect `matches`, not only the final
+   label matrix. An alias is a configurable rule, not a substitute for clinical
+   validation.
+6. Cache RadGraph annotations while iterating so alias edits do not rerun model
+   inference.
+
+### Python
+
+To add a finding while retaining the built-in labels:
 
 ```python
-from radlabels import label_reports
+from copy import deepcopy
 
-results = label_reports([
-    "FINDINGS: Small left pleural effusion. Cardiomegaly is stable.",
-    "Bibasilar atelectasis without focal consolidation.",
-])
+from radlabels import ALIASES, label_reports, validate_aliases
 
-for r in results:
-    print(r.report_id, r.labels)
-    for m in r.matches:
-        print(" ", m["disease"], m["alias"], m["label"], m["start_ix"])
+aliases = deepcopy(ALIASES)
+aliases["left_ventricular_assist_device"] = {
+    "aliases": ["left ventricular assist device", "lvad"],
+    "exclude": [],
+}
+
+messages = validate_aliases(aliases)
+errors = [message for message in messages if message.startswith("ERROR:")]
+if errors:
+    raise ValueError("\n".join(errors))
+
+results = label_reports(
+    ["A left ventricular assist device remains in place."],
+    aliases=aliases,
+)
+print(results[0].labels)
 ```
+
+Expected output:
+
+```text
+{'left_ventricular_assist_device': 'definitely present'}
+```
+
+### CLI
+
+```bash
+radlabels label \
+  --file reports.json \
+  --radgraph-cache cache.json \
+  --custom-aliases my_aliases.json \
+  --out labels.json \
+  --matches matches.json
+```
+
+`--custom-aliases` and the Python `aliases=` argument **replace the built-in
+dictionary**. To extend the defaults, copy or merge `radlabels.ALIASES` first,
+as in the Python example. `validate_aliases()` returns schema errors and warns
+when the same normalized phrase appears under multiple labels; duplicate
+phrases may be intentional, but they should be reviewed.
 
 ---
 
-## 2. Run the bundled corpus
+## Bundled demo corpus
 
-The package ships with 1000 chest radiology reports and pre-computed labels in
-`samples/synthetic_reports/`, `samples/synthetic_labels.json`, and
-`samples/synthetic_matches.json`. They are intended for demoing the pipeline
-and are not for clinical use.
+The package ships with 1,000 chest-radiology reports and precomputed outputs:
+
+- [reports](src/radlabels/samples/synthetic_reports/)
+- [labels](src/radlabels/samples/synthetic_labels.json)
+- [evidence matches](src/radlabels/samples/synthetic_matches.json)
+
+Installed wheels bundle the same files under `radlabels/samples/`. They are
+intended for demonstrating the pipeline and testing integrations; they are
+**not for clinical use**.
 
 ```bash
 radlabels demo               # first 5 reports + corpus summary
 radlabels demo --n 20        # show 20 per-report match tables
 radlabels demo --recompute   # re-run RadGraph instead of using cached labels
 ```
+
+<details>
+<summary>View a bundled report, its matches, and the corpus summary</summary>
 
 ### Example: a single report's match table
 
@@ -203,6 +330,8 @@ There small bilateral pleural effusion. The ET tube is
 
 48 / 49 labels in the dictionary fire at least once on the bundled corpus.
 
+</details>
+
 ---
 
 ## Hardware and benchmarks
@@ -228,10 +357,14 @@ about **22 minutes**.
 
 ---
 
-## Label set
+## Built-in label set
 
-The shipped dictionary has **49 findings**. Add or rename any of them by
-editing `radlabels/aliases.py` (or pass your own dict to the API).
+The shipped dictionary has **49 findings**. Use the
+[custom-label workflow](#create-your-own-labels) to add, replace, or rename
+findings without editing the installed package.
+
+<details>
+<summary>View all 49 built-in findings</summary>
 
 | Label | # aliases | Example aliases |
 |---|---|---|
@@ -288,13 +421,15 @@ editing `radlabels/aliases.py` (or pass your own dict to the API).
 A few labels also carry an `exclude` clause that vetoes false positives, e.g.
 `pleural_effusion` excludes `pericardial effusion`.
 
+</details>
+
 ---
 
 ## Tuning knobs
 
 ### Uncertainty policy
 
-Both `label_study` and `label_reports` accept:
+The Python APIs `label_study` and `label_reports` accept:
 
 - **`apply_exclude=False`** — disable the per-label exclude clauses (default is `True`).
 - **`uncertainty_policy="keep" | "as_positive" | "as_negative" | "drop"`** —
@@ -315,48 +450,17 @@ radlabels label --file reports.json --save-radgraph-cache cache.json --out label
 radlabels label --file reports.json --radgraph-cache cache.json --out labels.json
 ```
 
-Cache files include a `_meta` provenance header (radlabels version, alias version,
-timestamp) so cached outputs remain auditable.
-
-### Custom alias dictionaries
-
-Replace the built-in dictionary with your own for CLI or Python use:
-
-```bash
-radlabels label --file reports.json --radgraph-cache cache.json \
-    --custom-aliases my_aliases.json --out labels.json
-```
-
-```python
-from radlabels import label_reports, validate_aliases
-
-my_dict = {
-    "my_finding": {"aliases": ["ground glass", "hazy opacity"], "exclude": []},
-}
-errors = validate_aliases(my_dict)   # check schema before use
-results = label_reports(texts, aliases=my_dict)
-```
-
-The dictionary schema mirrors `ALIASES` — each key maps to `{"aliases": [...], "exclude": [...]}`.
-`validate_aliases()` returns schema errors and duplicate-phrase warnings before running.
+Cache files include a `_meta` header with the `radlabels` version, built-in
+alias version, and timestamp. The cache contains RadGraph annotations, not
+compiled labels; retain the alias dictionary used for each generated label set,
+especially when using custom aliases.
 
 ### Coarse-grained labels
 
-`PARENT_MAP` maps all 49 leaf labels to 10 coarse parent groups, enabling hierarchical
-aggregation without a separate lookup table:
-
-```python
-from radlabels import PARENT_MAP, label_study
-
-labels, _, _ = label_study(anno)
-coarse = {}
-for leaf, status in labels.items():
-    parent = PARENT_MAP[leaf]
-    if parent not in coarse or status == "definitely present":
-        coarse[parent] = status
-```
-
-See `examples/04_fine_to_coarse.py` for rule-based and score-based aggregation helpers.
+`PARENT_MAP` maps all 49 built-in labels to nine coarse groups. Parent labels
+are not emitted automatically. See
+[`examples/04_fine_to_coarse.py`](examples/04_fine_to_coarse.py) for
+status-aware report-label aggregation and max-pooled model-score aggregation.
 
 ---
 
@@ -365,10 +469,16 @@ See `examples/04_fine_to_coarse.py` for rule-based and score-based aggregation h
 If you use this in academic work, please cite:
 
 ```bibtex
-@article{delbrouck2026radlabels,
-  title  = {Fast, Free, Accurate, Unlimited, and Controllable Radiological Labels},
-  author = {Delbrouck, Jean-Benoit},
-  year   = {2026},
+@misc{delbrouck2026reconfigurableradiologylabelsrelabeling,
+  title         = {Reconfigurable Radiology Labels Without Relabeling},
+  author        = {Jean-Benoit Delbrouck and Dave Van Veen and Akash Pattnaik
+                   and Kalina Slavkova and Javid Abderezaei and Harris Bergman
+                   and Khan Siddiqui},
+  year          = {2026},
+  eprint        = {2607.06597},
+  archivePrefix = {arXiv},
+  primaryClass  = {eess.IV},
+  url           = {https://arxiv.org/abs/2607.06597}
 }
 ```
 

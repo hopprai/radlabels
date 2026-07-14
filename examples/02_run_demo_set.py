@@ -1,8 +1,8 @@
 """Label the bundled corpus of 1000 reports and print a summary table.
 
 The bundled labels are pre-computed; this example uses them directly so it
-runs in milliseconds with no GPU. Pass ``recompute=True`` to call RadGraph
-yourself.
+runs in milliseconds with no GPU. Use ``radlabels demo --recompute`` to run
+RadGraph on the bundled reports instead.
 """
 from pathlib import Path
 

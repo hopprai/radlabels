@@ -1,0 +1,44 @@
+cff-version: 1.2.0
+message: "If you use radlabels, please cite the associated paper."
+title: "radlabels"
+type: software
+authors:
+  - family-names: "Delbrouck"
+    given-names: "Jean-Benoit"
+  - family-names: "Van Veen"
+    given-names: "Dave"
+  - family-names: "Pattnaik"
+    given-names: "Akash"
+  - family-names: "Slavkova"
+    given-names: "Kalina"
+  - family-names: "Abderezaei"
+    given-names: "Javid"
+  - family-names: "Bergman"
+    given-names: "Harris"
+  - family-names: "Siddiqui"
+    given-names: "Khan"
+repository-code: "https://github.com/hopprai/radlabels"
+url: "https://arxiv.org/abs/2607.06597"
+preferred-citation:
+  type: article
+  title: "Reconfigurable Radiology Labels Without Relabeling"
+  authors:
+    - family-names: "Delbrouck"
+      given-names: "Jean-Benoit"
+    - family-names: "Van Veen"
+      given-names: "Dave"
+    - family-names: "Pattnaik"
+      given-names: "Akash"
+    - family-names: "Slavkova"
+      given-names: "Kalina"
+    - family-names: "Abderezaei"
+      given-names: "Javid"
+    - family-names: "Bergman"
+      given-names: "Harris"
+    - family-names: "Siddiqui"
+      given-names: "Khan"
+  year: 2026
+  identifiers:
+    - type: other
+      value: "arXiv:2607.06597"
+  url: "https://arxiv.org/abs/2607.06597"
